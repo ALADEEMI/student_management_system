@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import '../models/student.dart';
 import '../utils/database_helper.dart';
+import '../utils/excel_helper.dart';
 import '../widgets/student_card.dart';
 import 'add_student_screen.dart';
 import 'edit_student_screen.dart';
@@ -249,6 +252,50 @@ class _StudentsScreenState extends State<StudentsScreen> {
     );
   }
 
+  Future<void> _importStudents() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result != null) {
+        final file = File(result.files.single.path!);
+        final students = await ExcelHelper.importStudentsFromExcel(file);
+
+        setState(() => _isLoading = true);
+
+        for (final student in students) {
+          await DatabaseHelper.instance.createStudent(student);
+        }
+
+        await _loadStudents();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم استيراد ${students.length} طالب بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء استيراد الطلاب: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -302,10 +349,22 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addStudent,
-        tooltip: 'إضافة طالب',
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            backgroundColor: Colors.green,
+            onPressed: _importStudents,
+            heroTag: 'import_students',
+            child: const Icon(Icons.upload_file, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _addStudent,
+            heroTag: 'add_student',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

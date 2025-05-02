@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import '../models/course.dart';
 import '../utils/database_helper.dart';
+import '../utils/excel_helper.dart';
 import '../widgets/course_card.dart';
 import 'add_course_screen.dart';
 import 'edit_course_screen.dart';
@@ -306,6 +309,50 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
   int min(int a, int b) => a < b ? a : b;
 
+  Future<void> _importCourses() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['xlsx', 'xls'],
+      );
+
+      if (result != null) {
+        final file = File(result.files.single.path!);
+        final courses = await ExcelHelper.importCoursesFromExcel(file);
+
+        setState(() => _isLoading = true);
+
+        for (final course in courses) {
+          await DatabaseHelper.instance.createCourse(course);
+        }
+
+        await _loadCourses();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('تم استيراد ${courses.length} كورس بنجاح'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('حدث خطأ أثناء استيراد الكورسات: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -368,9 +415,22 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addCourse,
-        child: const Icon(Icons.add),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            backgroundColor: Colors.green,
+            onPressed: _importCourses,
+            heroTag: 'import_courses',
+            child: const Icon(Icons.upload_file, color: Colors.white),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            onPressed: _addCourse,
+            heroTag: 'add_course',
+            child: const Icon(Icons.add),
+          ),
+        ],
       ),
     );
   }

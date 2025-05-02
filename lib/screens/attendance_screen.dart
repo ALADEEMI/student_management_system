@@ -357,36 +357,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: AttendanceStatus.values.map((status) {
               final count = _attendanceProgress[status] ?? 0;
-              return Column(
-                children: [
-                  Radio<AttendanceStatus>(
-                    value: status,
-                    groupValue: null,
-                    onChanged: (AttendanceStatus? value) {
-                      if (value != null) {
-                        setState(() {
-                          for (var student in _students) {
-                            _attendanceStatus[student.id!] = value;
-                          }
-                          _updateAttendanceProgress();
-                        });
-                      }
-                    },
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Attendance.getStatusColor(status),
-                      borderRadius: BorderRadius.circular(8),
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    for (var student in _students) {
+                      _attendanceStatus[student.id!] = status;
+                    }
+                    _updateAttendanceProgress();
+                  });
+                },
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Attendance.getStatusColor(status),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                      ),
                     ),
-                    child: Text(
-                      count.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(status.toString().split('.').last.toUpperCase()),
-                ],
+                    const SizedBox(height: 4),
+                    Text(status.toString().split('.').last.toUpperCase()),
+                  ],
+                ),
               );
             }).toList(),
           ),
@@ -433,35 +429,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   label = 'لا يوجد واجب';
                   break;
               }
-              return Column(
-                children: [
-                  Radio<AssignmentStatus>(
-                    value: status,
-                    groupValue: null,
-                    onChanged: (AssignmentStatus? value) {
-                      if (value != null) {
-                        setState(() {
-                          for (var student in _students) {
-                            _assignmentStatus[student.id!] = value;
-                          }
-                        });
-                      }
-                    },
-                  ),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Attendance.getAssignmentStatusColor(status),
-                      borderRadius: BorderRadius.circular(8),
+              return InkWell(
+                onTap: () {
+                  setState(() {
+                    for (var student in _students) {
+                      _assignmentStatus[student.id!] = status;
+                    }
+                  });
+                },
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Attendance.getAssignmentStatusColor(status),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        count.toString(),
+                        style: const TextStyle(color: Colors.white, fontSize: 18),
+                      ),
                     ),
-                    child: Text(
-                      count.toString(),
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(label),
-                ],
+                    const SizedBox(height: 4),
+                    Text(label),
+                  ],
+                ),
               );
             }).toList(),
           ),

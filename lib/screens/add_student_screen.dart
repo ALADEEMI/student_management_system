@@ -19,6 +19,11 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
   bool _isLoading = false;
 
   @override
+  void initState() {
+    super.initState();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -69,21 +74,17 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _phoneController,
+                keyboardType: TextInputType.phone,
                 decoration: const InputDecoration(
                   labelText: 'رقم الهاتف',
                   prefixIcon: Icon(Icons.phone),
                   border: OutlineInputBorder(),
                 ),
-                keyboardType: TextInputType.phone,
-                validator: (value) {
+                  validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'يرجى إدخال رقم الهاتف';
                   }
-                  if (!value.startsWith('+967')) {
-                    return 'يجب أن يبدأ رقم الهاتف بـ +967';
-                  }
-                  String numberWithoutPrefix = value.substring(4);
-                  if (!RegExp(r'^(71|78|73|70|77)\d{7}$').hasMatch(numberWithoutPrefix)) {
+                  if (!RegExp(r'^(71|78|73|70|77)\d{7}$').hasMatch(value)) {
                     return 'يرجى إدخال رقم هاتف يمني صحيح';
                   }
                   return null;
@@ -109,15 +110,15 @@ class _AddStudentScreenState extends State<AddStudentScreen> {
               _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : ElevatedButton(
-                onPressed: _saveStudent,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text(
-                  'حفظ الطالب',
-                  style: TextStyle(fontSize: 16),
-                ),
-              ),
+                      onPressed: _saveStudent,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      child: const Text(
+                        'حفظ الطالب',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ),
             ],
           ),
         ),

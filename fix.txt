@@ -1,0 +1,425 @@
+Student-Course Relationship Management Solution
+1. Database Model Update (database_helper.dart)
+First, ensure proper relationship table structure:
+
+dart
+Copy
+// database_helper.dart - Updated _onCreate function
+void _onCreate(Database db, int version) async {
+  // Other tables...
+
+  // Users table
+  await db.execute('''
+    CREATE TABLE users(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE,
+      password TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  ''');
+
+  // Students table
+  await db.execute('''
+    CREATE TABLE students(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      email TEXT,
+      phone TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  ''');
+
+  // Courses table
+  await db.execute('''
+    CREATE TABLE courses(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT,
+      description TEXT,
+      duration INTEGER,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  ''');
+
+  // Student-Course relationship table
+  await db.execute('''
+    CREATE TABLE student_course(
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      student_id INTEGER,
+      course_id INTEGER,
+      enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+      FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+      UNIQUE(student_id, course_id)
+    )
+  ''');
+}
+2. Relationship Management Functions
+Add these functions to database_helper.dart:
+
+dart
+Copy
+// Enroll student in course
+Future<int> enrollStudentInCourse(int studentId, int courseId) async {
+  final Database db = await database;
+  
+  try {
+    return await db.insert(
+      'student_course',
+      {
+        'student_id': studentId,
+        'course_id': courseId,
+      },
+      conflictAlgorithm: ConflictAlgorithm.ignore, // Prevent duplicates
+    );
+  } catch (e) {
+    print('Error enrolling student: $e');
+    return -1;
+  }
+}
+
+// Unenroll student from course
+Future<int> unenrollStudentFromCourse(int studentId, int courseId) async {
+  final Database db = await database;
+  
+  return await db.delete(
+    'student_course',
+    where: 'student_id = ? AND course_id = ?',
+    whereArgs: [studentId, courseId],
+  );
+}
+
+// Get all courses for a student
+Future<List<Map<String, dynamic>>> getCoursesForStudent(int studentId) async {
+  final Database db = await database;
+  
+  return await db.rawQuery('''
+    SELECT c.* FROM courses c
+    INNER JOIN student_course sc ON c.id = sc.course_id
+    WHERE sc.student_id = ?
+  ''', [studentId]);
+}
+
+// Get all students in a course
+Future<List<Map<String, dynamic>>> getStudentsForCourse(int courseId) async {
+  final Database db = await database;
+  
+  return await db.rawQuery('''
+    SELECT s.* FROM students s
+    INNER JOIN student_course sc ON s.id = sc.student_id
+    WHERE sc.course_id = ?
+  ''', [courseId]);
+}
+
+// Check if student is enrolled in course
+Future<bool> isStudentEnrolledInCourse(int studentId, int courseId) async {
+  final Database db = await database;
+  
+  final List<Map<String, dynamic>> result = await db.query(
+    'student_course',
+    where: 'student_id = ? AND course_id = ?',
+    whereArgs: [studentId, courseId],
+  );
+  
+  return result.isNotEmpty;
+}
+3. Relationship Management Screen
+Create new file lib/screens/student_course_management.dart:
+
+dart
+Copy
+import 'package:flutter/material.dart';
+import '../database/database_helper.dart';
+import '../models/student.dart';
+import '../models/course.dart';
+
+class StudentCourseManagement extends StatefulWidget {
+  final dynamic entity;
+  final bool isStudent; // true for student, false for course
+
+  const StudentCourseManagement({
+    Key? key,
+    required this.entity,
+    required this.isStudent,
+  }) : super(key: key);
+
+  @override
+  _StudentCourseManagementState createState() => _StudentCourseManagementState();
+}
+
+class _StudentCourseManagementState extends State<StudentCourseManagement> {
+  final DatabaseHelper _databaseHelper = DatabaseHelper.instance;
+  List<dynamic> _relatedEntities = [];
+  List<dynamic> _availableEntities = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+
+    try {
+      if (widget.isStudent) {
+        // For students: load enrolled and available courses
+        final Student student = widget.entity;
+        
+        final enrolledCoursesData = await _databaseHelper.getCoursesForStudent(student.id!);
+        final enrolledCourses = enrolledCoursesData.map((data) => Course.fromMap(data)).toList();
+        
+        final allCoursesData = await _databaseHelper.getCourses();
+        final allCourses = allCoursesData.map((data) => Course.fromMap(data)).toList();
+        
+        final availableCourses = allCourses.where((course) => 
+          !enrolledCourses.any((enrolled) => enrolled.id == course.id)
+        ).toList();
+
+        setState(() {
+          _relatedEntities = enrolledCourses;
+          _availableEntities = availableCourses;
+        });
+      } else {
+        // For courses: load enrolled and available students
+        final Course course = widget.entity;
+        
+        final enrolledStudentsData = await _databaseHelper.getStudentsForCourse(course.id!);
+        final enrolledStudents = enrolledStudentsData.map((data) => Student.fromMap(data)).toList();
+        
+        final allStudentsData = await _databaseHelper.getStudents();
+        final allStudents = allStudentsData.map((data) => Student.fromMap(data)).toList();
+        
+        final availableStudents = allStudents.where((student) => 
+          !enrolledStudents.any((enrolled) => enrolled.id == student.id)
+        ).toList();
+
+        setState(() {
+          _relatedEntities = enrolledStudents;
+          _availableEntities = availableStudents;
+        });
+      }
+    } catch (e) {
+      print('Error loading data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error loading data: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _addRelation(dynamic entity) async {
+    try {
+      int result = -1;
+      
+      if (widget.isStudent) {
+        final Student student = widget.entity;
+        final Course course = entity;
+        result = await _databaseHelper.enrollStudentInCourse(student.id!, course.id!);
+      } else {
+        final Course course = widget.entity;
+        final Student student = entity;
+        result = await _databaseHelper.enrollStudentInCourse(student.id!, course.id!);
+      }
+
+      if (result != -1) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully added')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to add')),
+        );
+      }
+    } catch (e) {
+      print('Error adding relation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  Future<void> _removeRelation(dynamic entity) async {
+    try {
+      int result = -1;
+      
+      if (widget.isStudent) {
+        final Student student = widget.entity;
+        final Course course = entity;
+        result = await _databaseHelper.unenrollStudentFromCourse(student.id!, course.id!);
+      } else {
+        final Course course = widget.entity;
+        final Student student = entity;
+        result = await _databaseHelper.unenrollStudentFromCourse(student.id!, course.id!);
+      }
+
+      if (result > 0) {
+        _loadData();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Successfully removed')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to remove')),
+        );
+      }
+    } catch (e) {
+      print('Error removing relation: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final String title = widget.isStudent 
+      ? 'Courses for ${(widget.entity as Student).name}' 
+      : 'Students in ${(widget.entity as Course).name}';
+
+    final String relatedTitle = widget.isStudent ? 'Enrolled Courses' : 'Enrolled Students';
+    final String availableTitle = widget.isStudent ? 'Available Courses' : 'Available Students';
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title)),
+      body: _isLoading 
+        ? const Center(child: CircularProgressIndicator())
+        : Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(relatedTitle, style: Theme.of(context).textTheme.headline6),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 1,
+                  child: _relatedEntities.isEmpty
+                    ? const Center(child: Text('No related items'))
+                    : ListView.builder(
+                        itemCount: _relatedEntities.length,
+                        itemBuilder: (context, index) {
+                          final entity = _relatedEntities[index];
+                          return ListTile(
+                            title: Text(entity.name),
+                            subtitle: widget.isStudent
+                              ? Text('Duration: ${(entity as Course).duration} hours')
+                              : Text('Email: ${(entity as Student).email}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.remove_circle, color: Colors.red),
+                              onPressed: () => _removeRelation(entity),
+                            ),
+                          );
+                        },
+                      ),
+                ),
+                const Divider(thickness: 2),
+                const SizedBox(height: 10),
+                Text(availableTitle, style: Theme.of(context).textTheme.headline6),
+                const SizedBox(height: 10),
+                Expanded(
+                  flex: 1,
+                  child: _availableEntities.isEmpty
+                    ? const Center(child: Text('No available items'))
+                    : ListView.builder(
+                        itemCount: _availableEntities.length,
+                        itemBuilder: (context, index) {
+                          final entity = _availableEntities[index];
+                          return ListTile(
+                            title: Text(entity.name),
+                            subtitle: widget.isStudent
+                              ? Text('Duration: ${(entity as Course).duration} hours')
+                              : Text('Email: ${(entity as Student).email}'),
+                            trailing: IconButton(
+                              icon: const Icon(Icons.add_circle, color: Colors.green),
+                              onPressed: () => _addRelation(entity),
+                            ),
+                          );
+                        },
+                      ),
+                ),
+              ],
+            ),
+          ),
+    );
+  }
+}
+4. Update Student Screen
+Add course viewing functionality to student_screen.dart:
+
+dart
+Copy
+// In student_screen.dart
+import 'student_course_management.dart';
+
+// Update _viewStudentCourses function
+void _viewStudentCourses(Student student) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => StudentCourseManagement(
+        entity: student,
+        isStudent: true,
+      ),
+    ),
+  ).then((_) {
+    // Reload data when returning
+    _loadStudents();
+  });
+}
+5. Update Course Screen
+Add student viewing functionality to course_screen.dart:
+
+dart
+Copy
+// In course_screen.dart
+import 'student_course_management.dart';
+
+// Update _viewCourseStudents function
+void _viewCourseStudents(Course course) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => StudentCourseManagement(
+        entity: course,
+        isStudent: false,
+      ),
+    ),
+  ).then((_) {
+    // Reload data when returning
+    _loadCourses();
+  });
+}
+Solution Summary
+Database: Created proper student_course relationship table with constraints
+
+Functions: Added CRUD operations for student-course relationships
+
+Management Screen: Created dedicated interface for managing relationships
+
+Integration: Connected new functionality to existing student/course screens
+
+This solution provides complete functionality for:
+
+Enrolling students in courses
+
+Viewing course enrollments per student
+
+Viewing student enrollments per course
+
+Removing enrollments
+
+Preventing duplicate enrollments
+
+The implementation follows best practices for:
+
+Database design (proper relationships, constraints)
+
+State management
+
+Error handling
+
+User experience
+
+Code organization

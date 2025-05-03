@@ -406,6 +406,18 @@ Future<List<Map<String, dynamic>>> getAttendanceForCourseSession(
     );
   }
 
+  Future<void> deleteAllStudents() async {
+    final db = await database;
+    await db.delete('students');
+    await db.delete('enrollments');
+  }
+
+  Future<void> deleteAllCourses() async {
+    final db = await database;
+    await db.delete('courses');
+    await db.delete('enrollments');
+  }
+
   Future<void> close() async {
     final db = await instance.database;
     db.close();

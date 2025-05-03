@@ -48,6 +48,59 @@ class _CoursesScreenState extends State<CoursesScreen> {
     }
   }
 
+  Future<void> _deleteAllCourses() async {
+    final confirm = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('تأكيد حذف الكل'),
+        content: const Text('هل أنت متأكد من حذف جميع الكورسات؟ لا يمكن التراجع عن هذا الإجراء.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('إلغاء'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text(
+              'حذف الكل',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      setState(() => _isLoading = true);
+      try {
+        await DatabaseHelper.instance.deleteAllCourses();
+        await _loadCourses();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('تم حذف جميع الكورسات بنجاح'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('حدث خطأ أثناء حذف الكورسات: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
+      }
+    }
+  }
+
   void _filterCourses(String query) {
     setState(() {
       if (query.isEmpty) {
@@ -322,17 +375,68 @@ class _CoursesScreenState extends State<CoursesScreen> {
 
         setState(() => _isLoading = true);
 
-        for (final course in courses) {
-          await DatabaseHelper.instance.createCourse(course);
+        int successCount = 0;
+        List<String> failedImports = [];
+
+        for (final course in courses.successfulImports) {
+          try {
+            await DatabaseHelper.instance.createCourse(course);
+            successCount++;
+          } catch (e) {
+            failedImports.add('${course.title}: $e');
+          }
         }
 
         await _loadCourses();
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('تم استيراد ${courses.length} كورس بنجاح'),
-              backgroundColor: Colors.green,
+          String message = successCount > 0 
+            ? 'تم استيراد $successCount كورس بنجاح'
+            : 'لم يتم استيراد أي كورس';
+          if (courses.failedImports.isNotEmpty) {
+            message += '\nفشل استيراد ${courses.failedImports.length} كورس';
+          }
+
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(successCount > 0 ? 'تم الاستيراد بنجاح' : 'فشل الاستيراد'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(message),
+                    if (courses.failedImports.isNotEmpty) ...[  
+                      const SizedBox(height: 16),
+                      const Text('الصفوف التي فشل استيرادها:'),
+                      const SizedBox(height: 8),
+                      ...courses.failedImports.map((error) =>
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text('الصف ${error.rowNumber+1}: ${error.reason}'),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(successCount > 0
+                          ? 'تم استيراد $successCount كورس بنجاح'
+                          : 'لم يتم استيراد أي كورس'),
+                        backgroundColor: successCount > 0 ? Colors.green : Colors.orange,
+                      ),
+                    );
+                  },
+                  child: const Text('حسناً'),
+                ),
+              ],
             ),
           );
         }
@@ -378,6 +482,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
                   onPressed: () {
                     _searchController.clear();
                     _filterCourses('');
+                    FocusScope.of(context).unfocus();
                   },
                 ),
               ),
@@ -429,6 +534,13 @@ class _CoursesScreenState extends State<CoursesScreen> {
             onPressed: _addCourse,
             heroTag: 'add_course',
             child: const Icon(Icons.add),
+          ),
+          const SizedBox(height: 16),
+          FloatingActionButton(
+            backgroundColor: Colors.red,
+            onPressed: _deleteAllCourses,
+            heroTag: 'delete_all_courses',
+            child: const Icon(Icons.delete_forever, color: Colors.white),
           ),
         ],
       ),

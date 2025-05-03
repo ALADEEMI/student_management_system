@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:excel/excel.dart';
 import '../models/student.dart';
 import '../models/course.dart';
+import '../utils/database_helper.dart';
 
 class ImportError {
   final int rowNumber;
@@ -53,6 +54,9 @@ class ExcelHelper {
     final bytes = await file.readAsBytes();
     final excel = Excel.decodeBytes(bytes);
     final students = <Student>[];
+    final existingEmails = <String>{};
+    final existingPhones = <String>{};
+
     int skippedRows = 0;
 
     // Get the first sheet
@@ -80,12 +84,27 @@ class ExcelHelper {
       // Validate student data
       final validationError = _validateStudentData(name, email, phone, address);
       if (validationError == null) {
+        // Check for duplicate email
+        if (await DatabaseHelper.instance.isStudentEmailExists(email) || existingEmails.contains(email)) {
+          failedImports.add(ImportError(i, 'البريد الإلكتروني مستخدم بالفعل'));
+          continue;
+        }
+        
+        if (await DatabaseHelper.instance.isStudentPhoneExists(phone) || existingPhones.contains(phone)) {
+          failedImports.add(ImportError(i, 'رقم الهاتف مستخدم بالفعل'));
+          continue;
+        }
+
+
         students.add(Student(
           name: name,
           email: email,
           phone: phone,
           address: address,
         ));
+
+        existingEmails.add(email);
+        existingPhones.add(phone);
       } else {
         failedImports.add(ImportError(i, validationError));
       }
@@ -124,6 +143,7 @@ class ExcelHelper {
     final bytes = await file.readAsBytes();
     final excel = Excel.decodeBytes(bytes);
     final courses = <Course>[];
+    final existingCourses = <String>{};
     int skippedRows = 0;
 
     // Get the first sheet
@@ -169,6 +189,12 @@ class ExcelHelper {
       // Validate course data
       final validationError = _validateCourseData(title, code, description, creditHours, courseTypeInt);
       if (validationError == null) {
+        // Check for duplicate course title
+        if (await DatabaseHelper.instance.isCourseExists(title) || existingCourses.contains(title)) {
+          failedImports.add(ImportError(i, 'هذا الكورس موجود بالفعل'));
+          continue;
+        }
+
         courses.add(Course(
           title: title,
           code: code,
@@ -176,6 +202,7 @@ class ExcelHelper {
           creditHours: creditHours,
           courseType: CourseType.values[courseTypeInt],
         ));
+        existingCourses.add(title);
       } else {
         failedImports.add(ImportError(i, validationError));
       }

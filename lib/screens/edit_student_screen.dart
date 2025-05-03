@@ -82,24 +82,21 @@ class _EditStudentScreenState extends State<EditStudentScreen> {
               TextFormField(
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'رقم الهاتف',
+                  prefixIcon: Icon(Icons.phone),
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty || value.length <= 4) {
+                  validator: (value) {
+                  if (value == null || value.isEmpty) {
                     return 'يرجى إدخال رقم الهاتف';
                   }
-              
-                  String numberWithoutPrefix = value.substring(4);
-                  if (!RegExp(r'^(71|78|73|70|77)\d{7}$').hasMatch(numberWithoutPrefix)) {
+                  if (!RegExp(r'^(71|78|73|70|77)\d{7}$').hasMatch(value)) {
                     return 'يرجى إدخال رقم هاتف يمني صحيح';
                   }
-              
                   return null;
                 },
               ),
-
               const SizedBox(height: 16),
               TextFormField(
                 controller: _addressController,

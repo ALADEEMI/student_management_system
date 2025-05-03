@@ -141,14 +141,57 @@ class DatabaseHelper {
     return result.isNotEmpty ? result.first : null;
   }
 
+  // Student validation operations
+  Future<bool> isStudentEmailExists(String email, {int? excludeId}) async {
+    final db = await database;
+    final query = excludeId != null
+        ? 'SELECT * FROM students WHERE email = ? AND id != ?'
+        : 'SELECT * FROM students WHERE email = ?';
+    final args = excludeId != null ? [email, excludeId] : [email];
+    final result = await db.rawQuery(query, args);
+    return result.isNotEmpty;
+  }
+
+  Future<bool> isStudentPhoneExists(String phone, {int? excludeId}) async {
+    final db = await database;
+    final query = excludeId != null
+        ? 'SELECT * FROM students WHERE phone = ? AND id != ?'
+        : 'SELECT * FROM students WHERE phone = ?';
+    final args = excludeId != null ? [phone, excludeId] : [phone];
+    final result = await db.rawQuery(query, args);
+    return result.isNotEmpty;
+  }
+
   // Student operations
   Future<int> createStudent(Student student) async {
     final db = await database;
+    
+    // Check for duplicate email
+    if (await isStudentEmailExists(student.email)) {
+      throw Exception('البريد الإلكتروني مستخدم بالفعل');
+    }
+    
+    // Check for duplicate phone
+    if (await isStudentPhoneExists(student.phone)) {
+      throw Exception('رقم الهاتف مستخدم بالفعل');
+    }
+    
     return await db.insert('students', student.toMap());
   }
 
   Future<int> updateStudent(Student student) async {
     final db = await database;
+    
+    // Check for duplicate email, excluding current student
+    if (await isStudentEmailExists(student.email, excludeId: student.id)) {
+      throw Exception('البريد الإلكتروني مستخدم بالفعل');
+    }
+    
+    // Check for duplicate phone, excluding current student
+    if (await isStudentPhoneExists(student.phone, excludeId: student.id)) {
+      throw Exception('رقم الهاتف مستخدم بالفعل');
+    }
+    
     return await db.update(
       'students',
       student.toMap(),
@@ -202,9 +245,26 @@ class DatabaseHelper {
     return null;
   }
 
+  // Course validation operations
+  Future<bool> isCourseExists(String title, {int? excludeId}) async {
+    final db = await database;
+    final query = excludeId != null
+        ? 'SELECT * FROM courses WHERE title = ? AND id != ?'
+        : 'SELECT * FROM courses WHERE title = ?';
+    final args = excludeId != null ? [title, excludeId] : [title];
+    final result = await db.rawQuery(query, args);
+    return result.isNotEmpty;
+  }
+
   // Course operations
   Future<int> createCourse(Course course) async {
     final db = await database;
+    
+    // Check for duplicate course title
+    if (await isCourseExists(course.title)) {
+      throw Exception('هذا الكورس موجود بالفعل');
+    }
+    
     return await db.insert('courses', course.toMap());
   }
 
@@ -222,6 +282,12 @@ class DatabaseHelper {
 
   Future<int> updateCourse(Course course) async {
     final db = await database;
+    
+    // Check for duplicate course title, excluding current course
+    if (await isCourseExists(course.title, excludeId: course.id)) {
+      throw Exception('اسم المساق موجود بالفعل');
+    }
+    
     return await db.update(
       'courses',
       course.toMap(),

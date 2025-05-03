@@ -8,6 +8,7 @@ import '../utils/excel_helper.dart';
 import '../widgets/student_card.dart';
 import 'add_student_screen.dart';
 import 'edit_student_screen.dart';
+import '../widgets/radial_fab.dart'; // Import the new RadialFab widget
 
 class StudentsScreen extends StatefulWidget {
   const StudentsScreen({Key? key}) : super(key: key);
@@ -454,27 +455,32 @@ class _StudentsScreenState extends State<StudentsScreen> {
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+       floatingActionButton: RadialFab(
+        openIcon: Icons.menu,
+        closeIcon: Icons.close,
         children: [
-          FloatingActionButton(
-            backgroundColor: Colors.green,
-            onPressed: _importStudents,
-            heroTag: 'import_students',
-            child: const Icon(Icons.upload_file, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            onPressed: _addStudent,
-            heroTag: 'add_student',
-            child: const Icon(Icons.add),
-          ),
-          const SizedBox(height: 16),
           FloatingActionButton(
             backgroundColor: Colors.red,
             onPressed: _deleteAllStudents,
             heroTag: 'delete_all_students',
+            tooltip: 'Delete All Students', // Added tooltip
             child: const Icon(Icons.delete_forever, color: Colors.white),
+            mini: true, // Make child FABs smaller
+          ),
+          FloatingActionButton(
+            backgroundColor: Colors.green,
+            onPressed: _importStudents,
+            heroTag: 'import_students',
+            tooltip: 'Import Students', // Added tooltip
+            child: const Icon(Icons.upload_file, color: Colors.white),
+            mini: true, // Make child FABs smaller
+          ),
+          FloatingActionButton(
+            onPressed: _addStudent,
+            heroTag: 'add_student',
+            tooltip: 'Add Student', // Added tooltip
+            child: const Icon(Icons.add),
+            mini: true, // Make child FABs smaller
           ),
         ],
       ),

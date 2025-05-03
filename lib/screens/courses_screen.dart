@@ -10,6 +10,7 @@ import 'add_course_screen.dart';
 import 'edit_course_screen.dart';
 import 'enrollment_screen.dart';
 import 'attendance_screen.dart';
+import '../widgets/radial_fab.dart'; // Import the new RadialFab widget
 
 class CoursesScreen extends StatefulWidget {
   const CoursesScreen({Key? key}) : super(key: key);
@@ -520,27 +521,32 @@ class _CoursesScreenState extends State<CoursesScreen> {
           ),
         ],
       ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
+      floatingActionButton: RadialFab(
+        openIcon: Icons.menu,
+        closeIcon: Icons.close,
         children: [
-          FloatingActionButton(
-            backgroundColor: Colors.green,
-            onPressed: _importCourses,
-            heroTag: 'import_courses',
-            child: const Icon(Icons.upload_file, color: Colors.white),
-          ),
-          const SizedBox(height: 16),
-          FloatingActionButton(
-            onPressed: _addCourse,
-            heroTag: 'add_course',
-            child: const Icon(Icons.add),
-          ),
-          const SizedBox(height: 16),
           FloatingActionButton(
             backgroundColor: Colors.red,
             onPressed: _deleteAllCourses,
             heroTag: 'delete_all_courses',
+            tooltip: 'Delete All Courses', // Added tooltip
             child: const Icon(Icons.delete_forever, color: Colors.white),
+            mini: true, // Make child FABs smaller
+          ),
+          FloatingActionButton(
+            backgroundColor: Colors.green,
+            onPressed: _importCourses,
+            heroTag: 'import_courses',
+            tooltip: 'Import Courses', // Added tooltip
+            child: const Icon(Icons.upload_file, color: Colors.white),
+            mini: true, // Make child FABs smaller
+          ),
+          FloatingActionButton(
+            onPressed: _addCourse,
+            heroTag: 'add_course',
+            tooltip: 'Add Course', // Added tooltip
+            child: const Icon(Icons.add),
+            mini: true, // Make child FABs smaller
           ),
         ],
       ),

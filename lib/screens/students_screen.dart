@@ -389,7 +389,7 @@ class _StudentsScreenState extends State<StudentsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء استيراد الطلاب: $e'),
+            content: Text('حدث خطأ أثناء استيراد الطلاب: $e : يرجى التأكد من تنسيق الاعمدة Text'),
             backgroundColor: Colors.red,
           ),
         );

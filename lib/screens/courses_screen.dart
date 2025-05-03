@@ -446,7 +446,7 @@ class _CoursesScreenState extends State<CoursesScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('حدث خطأ أثناء استيراد الكورسات: $e'),
+            content: Text('حدث خطأ أثناء استيراد الكورسات: $e: يرجى التأكد من تنسيق الاعمدة Text'),
             backgroundColor: Colors.red,
           ),
         );
